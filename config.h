@@ -6,16 +6,16 @@
 // Simulation + Hardware
 /***********************************************/
 #define NODE_CNT 1 // Number of server nodes in the database
-#define THREAD_CNT 36
-#define REM_THREAD_CNT THREAD_CNT
-#define SEND_THREAD_CNT THREAD_CNT
+#define THREAD_CNT 68
+#define REM_THREAD_CNT 1
+#define SEND_THREAD_CNT 1
 #define CORE_CNT 36
 // PART_CNT should be at least NODE_CNT
 #define PART_CNT NODE_CNT
 #define CLIENT_NODE_CNT NODE_CNT
-#define CLIENT_THREAD_CNT 36
-#define CLIENT_REM_THREAD_CNT 18
-#define CLIENT_SEND_THREAD_CNT 18
+#define CLIENT_THREAD_CNT 72
+#define CLIENT_REM_THREAD_CNT 1
+#define CLIENT_SEND_THREAD_CNT 1
 #define CLIENT_RUNTIME false
 
 #define LOAD_METHOD LOAD_MAX
@@ -167,9 +167,9 @@
 #define ACCESS_PERC 0.03
 #define INIT_PARALLELISM 8
 #define SYNTH_TABLE_SIZE 65536
-#define ZIPF_THETA 0.3
-#define TXN_WRITE_PERC 0.0
-#define TUP_WRITE_PERC 0.0
+#define ZIPF_THETA 0.8
+#define TXN_WRITE_PERC 1.0
+#define TUP_WRITE_PERC 0.5
 #define SCAN_PERC           0
 #define SCAN_LEN          20
 #define PART_PER_TXN PART_CNT

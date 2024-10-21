@@ -120,7 +120,11 @@ void WorkerThread::check_if_done(RC rc) {
 }
 
 void WorkerThread::release_txn_man() {
-  txn_table.release_transaction_manager(get_thd_id(),txn_man->get_txn_id(),txn_man->get_batch_id());
+  work_queue.done_enqueue(_thd_id, txn_man); // TODO:
+  //                                       再考
+  // txn_table.release_transaction_manager(get_thd_id(), txn_man->get_txn_id(),
+  //                                       txn_man->get_batch_id()); // TODO:
+  //                                       再考
   txn_man = NULL;
 }
 

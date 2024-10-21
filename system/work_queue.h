@@ -17,6 +17,7 @@
 #ifndef _WORK_QUEUE_H_
 #define _WORK_QUEUE_H_
 
+#include "txn.h"  // TODO:　再考
 
 #include "global.h"
 #include "helper.h"
@@ -34,9 +35,7 @@ struct work_queue_entry {
   uint64_t txn_id;
   RemReqType rtype;
   uint64_t starttime;
-
 };
-
 
 struct CompareSchedEntry {
   bool operator()(const work_queue_entry* lhs, const work_queue_entry* rhs) {
@@ -67,7 +66,6 @@ struct CompareWQEntry {
     return lhs->starttime < rhs->starttime;
   }
 #endif
-
 };
 
 class QWorkQueue {
@@ -80,25 +78,34 @@ public:
   void sequencer_enqueue(uint64_t thd_id, Message * msg); 
   Message * sequencer_dequeue(uint64_t thd_id); 
 
-  uint64_t get_cnt() {return get_wq_cnt() + get_rem_wq_cnt() + get_new_wq_cnt();}
-  uint64_t get_wq_cnt() {return 0;}
-  //uint64_t get_wq_cnt() {return work_queue.size();}
-  uint64_t get_sched_wq_cnt() {return 0;}
-  uint64_t get_rem_wq_cnt() {return 0;} 
-  uint64_t get_new_wq_cnt() {return 0;}
-  //uint64_t get_rem_wq_cnt() {return remote_op_queue.size();}
-  //uint64_t get_new_wq_cnt() {return new_query_queue.size();}
+  void done_enqueue(uint64_t thd_id, TxnManager* txn_man);  // TODO: 再考
+  TxnManager* done_dequeue(uint64_t thd_id);                // TODO: 再考
 
-private:
-  boost::lockfree::queue<work_queue_entry* > * work_queue;
-  boost::lockfree::queue<work_queue_entry* > * new_txn_queue;
-  boost::lockfree::queue<work_queue_entry* > * seq_queue;
-  boost::lockfree::queue<work_queue_entry* > ** sched_queue;
+  uint64_t get_cnt() {
+    return get_wq_cnt() + get_rem_wq_cnt() + get_new_wq_cnt();
+  }
+  uint64_t get_wq_cnt() { return 0; }
+  // uint64_t get_wq_cnt() {return work_queue.size();}
+  uint64_t get_sched_wq_cnt() { return 0; }
+  uint64_t get_rem_wq_cnt() { return 0; }
+  uint64_t get_new_wq_cnt() { return 0; }
+  // uint64_t get_rem_wq_cnt() {return remote_op_queue.size();}
+  // uint64_t get_new_wq_cnt() {return new_query_queue.size();}
+
+ private:
+  boost::lockfree::queue<work_queue_entry*>*
+      new_txn_queue;  // クライアントから受信した新規トランザクションを一時的に保持します。
+  boost::lockfree::queue<work_queue_entry*>*
+      seq_queue;  // トランザクションの順序付けが必要な場合に使用されます。
+  boost::lockfree::queue<work_queue_entry*>*
+      work_queue;  // 実行可能なタスクを一元的に管理します。
+  boost::lockfree::queue<work_queue_entry*>**
+      sched_queue;  // タスクを特定のワーカースレッドに割り当てます。
+
+  boost::lockfree::queue<TxnManager*>* done_queue;  // TODO: 再考
   uint64_t sched_ptr;
   BaseQuery * last_sched_dq;
   uint64_t curr_epoch;
-
 };
-
 
 #endif

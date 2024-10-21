@@ -760,11 +760,11 @@ void TxnManager::cleanup(RC rc) {
 	    cleanup_row(rc,rid);
 	}
 #if CC_ALG == CALVIN
-	// cleanup locked rows
-    for (uint64_t i = 0; i < calvin_locked_rows.size(); i++) {
-        row_t * row = calvin_locked_rows[i];
-        row->return_row(rc,RD,this,row);
-    }
+	// // cleanup locked rows
+  //   for (uint64_t i = 0; i < calvin_locked_rows.size(); i++) {
+  //       row_t * row = calvin_locked_rows[i];
+  //       row->return_row(rc,RD,this,row);
+  //   } // TODO: 再考
 #endif
 
 	if (rc == Abort) {
