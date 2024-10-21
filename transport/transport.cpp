@@ -133,7 +133,7 @@ Socket * Transport::bind(uint64_t port_id) {
   sprintf(socket_name,"ipc://node_%ld.ipc",port_id);
 #else
 #if ENVIRONMENT_EC2
-  sprintf(socket_name,"tcp://eth0:%ld",port_id);
+  sprintf(socket_name,"tcp://bond0:%ld",port_id);
 #else
   sprintf(socket_name,"tcp://%s:%ld",ifaddr[g_node_id],port_id);
 #endif
@@ -154,7 +154,7 @@ Socket * Transport::connect(uint64_t dest_id,uint64_t port_id) {
   sprintf(socket_name,"ipc://node_%ld.ipc",port_id);
 #else
 #if ENVIRONMENT_EC2
-  sprintf(socket_name,"tcp://eth0;%s:%ld",ifaddr[dest_id],port_id);
+  sprintf(socket_name,"tcp://bond0;%s:%ld",ifaddr[dest_id],port_id);
 #else
   sprintf(socket_name,"tcp://%s;%s:%ld",ifaddr[g_node_id],ifaddr[dest_id],port_id);
 #endif

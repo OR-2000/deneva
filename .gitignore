@@ -5,3 +5,10 @@ figs*
 *ifconfig.txt
 rundb
 runcl
+
+ifconfig_memo.txt
+jemalloc-4.0.3/
+jemalloc/
+nanomsg-0.5-beta/
+nanomsg/
+obj/

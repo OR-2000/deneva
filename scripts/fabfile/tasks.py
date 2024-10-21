@@ -273,13 +273,13 @@ def copy_files(schema,exp_fname):
 @task
 @parallel
 def set_delay(delay='10'):
-    run("sudo tc qdisc add dev eth0 root netem delay {}ms".format(delay))
+    run("sudo tc qdisc add dev bond0 root netem delay {}ms".format(delay))
  
 #delay is in ms
 @task
 @parallel
 def reset_delay():
-    run("sudo tc qdisc del dev eth0 root") 
+    run("sudo tc qdisc del dev bond0 root") 
  
 @task
 @parallel
