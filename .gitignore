@@ -12,3 +12,5 @@ jemalloc/
 nanomsg-0.5-beta/
 nanomsg/
 obj/
+
+config.h

@@ -38,6 +38,7 @@ public:
     void setup();
 private:
     TxnManager * m_txn;
+    std::deque<TxnManager *> lockeds; // FIFO
 };
 
 class CalvinSequencerThread : public Thread {

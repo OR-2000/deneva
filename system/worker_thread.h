@@ -58,8 +58,6 @@ private:
     ts_t        _curr_ts;
     ts_t        get_next_ts();
     TxnManager * txn_man;
-
-
 };
 
 #endif

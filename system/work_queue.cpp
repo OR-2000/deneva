@@ -34,21 +34,28 @@ void QWorkQueue::init() {
   }
 }
 
-void QWorkQueue::done_enqueue(uint64_t thd_id, TxnManager* txn_man) {
+void QWorkQueue::done_enqueue(uint64_t thd_id, TxnManager* tx_man) {
+  assert(tx_man);
   uint64_t starttime = get_sys_clock();
-  assert(txn_man);
-
-  DEBUG("Done Enqueue (%ld,%ld)\n", txn_man->get_txn_id(),
-        txn_man->get_batch_id());
 
   // キューへのプッシュ
-  while (!done_queue->push(txn_man) && !simulation->is_done()) {
+  while (!done_queue->push(tx_man) && !simulation->is_done()) {
     // キューが満杯の場合、シミュレーションが終了するまで待つ
   }
+}
 
-  // 統計情報の更新
-  // INC_STATS(thd_id, done_queue_enqueue_time, get_sys_clock() - starttime);
-  // INC_STATS(thd_id, done_queue_enq_cnt, 1);
+TxnManager* QWorkQueue::done_dequeue(uint64_t thd_id) {
+  uint64_t starttime = get_sys_clock();
+  TxnManager* tx_man = nullptr;
+
+  // キューからのポップ
+  bool valid = done_queue->pop(tx_man);
+
+  if (valid) {
+    assert(tx_man);
+  }
+
+  return tx_man;
 }
 
 void QWorkQueue::sequencer_enqueue(uint64_t thd_id, Message* msg) {
@@ -94,29 +101,6 @@ Message* QWorkQueue::sequencer_dequeue(uint64_t thd_id) {
   }
 
   return msg;
-}
-
-TxnManager* QWorkQueue::done_dequeue(uint64_t thd_id) {
-  uint64_t starttime = get_sys_clock();
-  TxnManager* txn_man = NULL;
-
-  // キューからのポップ
-  bool valid = done_queue->pop(txn_man);
-
-  if (valid) {
-    assert(txn_man);
-
-    DEBUG("Done Dequeue (%ld,%ld)\n", txn_man->get_txn_id(),
-          txn_man->get_batch_id());
-
-    // uint64_t queue_time = get_sys_clock() - entry->starttime;
-    // INC_STATS(thd_id, done_queue_wait_time, queue_time);
-    // INC_STATS(thd_id, done_queue_cnt, 1);
-
-    // INC_STATS(thd_id, done_queue_dequeue_time, get_sys_clock() - starttime);
-  }
-
-  return txn_man;
 }
 
 void QWorkQueue::sched_enqueue(uint64_t thd_id, Message* msg) {

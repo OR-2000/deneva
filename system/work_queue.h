@@ -100,9 +100,10 @@ public:
   boost::lockfree::queue<work_queue_entry*>*
       work_queue;  // 実行可能なタスクを一元的に管理します。
   boost::lockfree::queue<work_queue_entry*>**
-      sched_queue;  // タスクを特定のワーカースレッドに割り当てます。
+      sched_queue;  // タスクを特定のワーカースレッドに割り当てます。 
 
   boost::lockfree::queue<TxnManager*>* done_queue;  // TODO: 再考
+
   uint64_t sched_ptr;
   BaseQuery * last_sched_dq;
   uint64_t curr_epoch;

@@ -215,7 +215,6 @@ INC_STATS(txn->get_thd_id(),twopl_getlock_cnt,1);
 	return rc;
 }
 
-
 RC Row_lock::lock_release(TxnManager * txn) {	
 
 #if CC_ALG == CALVIN

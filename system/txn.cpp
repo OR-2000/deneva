@@ -345,7 +345,6 @@ void TxnManager::init(uint64_t thd_id, Workload * h_wl) {
 #if CC_ALG == CALVIN
   phase = CALVIN_RW_ANALYSIS;
   locking_done = false;
-  calvin_locked_rows.init(MAX_ROW_PER_TXN);
 #endif
   
   txn_ready = true;
@@ -381,6 +380,7 @@ void TxnManager::reset() {
   phase = CALVIN_RW_ANALYSIS;
   locking_done = false;
   calvin_locked_rows.clear();
+  contented_calvin_locked_rows.clear();
 #endif
 
   assert(txn);
@@ -409,7 +409,8 @@ TxnManager::release() {
   delete uncommitted_reads;
 #endif
 #if CC_ALG == CALVIN
-  calvin_locked_rows.release();
+  calvin_locked_rows.clear();
+  contented_calvin_locked_rows.clear();
 #endif
   txn_ready = true;
 }
@@ -768,21 +769,24 @@ void TxnManager::cleanup(RC rc) {
 #endif
 
 	if (rc == Abort) {
+    // TODO: ycsbだとここは呼ばれないはず
 	    txn->release_inserts(get_thd_id());
 	    txn->insert_rows.clear();
-
-        INC_STATS(get_thd_id(), abort_time, get_sys_clock() - starttime);
+      INC_STATS(get_thd_id(), abort_time, get_sys_clock() - starttime);
 	} 
 }
 
 RC TxnManager::get_lock(row_t * row, access_t type) {
-    if (calvin_locked_rows.contains(row)) {
+    if (std::find(calvin_locked_rows.begin(), calvin_locked_rows.end(), row) != calvin_locked_rows.end() ||
+        std::find(contented_calvin_locked_rows.begin(), contented_calvin_locked_rows.end(), row) != contented_calvin_locked_rows.end()) {
         return RCOK;
     }
-    calvin_locked_rows.add(row);
     RC rc = row->get_lock(type, this);
     if(rc == WAIT) {
+      contented_calvin_locked_rows.emplace_back(row);
       INC_STATS(get_thd_id(), txn_wait_cnt, 1);
+    } else {
+      calvin_locked_rows.emplace_back(row);
     }
     return rc;
 }

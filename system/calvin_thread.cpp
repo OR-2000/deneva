@@ -42,77 +42,86 @@ RC CalvinLockThread::run() {
   tsetup();
 
   RC rc = RCOK;
-  TxnManager* txn_man;
+  TxnManager* txn_man = nullptr;
   uint64_t prof_starttime = get_sys_clock();
   uint64_t idle_starttime = 0;
 
   while (!simulation->is_done()) {
+    // ========= start acquire phase (a acquire) =========
+      Message* msg = work_queue.sched_dequeue(_thd_id);
+
+        if (!msg) {
+          if (idle_starttime == 0) idle_starttime = get_sys_clock();
+          continue;
+        }
+        if (idle_starttime > 0) {
+          INC_STATS(_thd_id, sched_idle_time, get_sys_clock() - idle_starttime);
+          idle_starttime = 0;
+        }
+
+        prof_starttime = get_sys_clock();
+        assert(msg->get_rtype() == CL_QRY);
+        assert(msg->get_txn_id() != UINT64_MAX);
+
+        txn_man = txn_table.get_transaction_manager(
+            get_thd_id(), msg->get_txn_id(), msg->get_batch_id());
+        while (!txn_man->unset_ready()) {
+        }
+        assert(ISSERVERN(msg->get_return_id()));
+        txn_man->txn_stats.starttime = get_sys_clock();
+
+        txn_man->txn_stats.lat_network_time_start = msg->lat_network_time;
+        txn_man->txn_stats.lat_other_time_start = msg->lat_other_time;
+
+        msg->copy_to_txn(txn_man);
+        txn_man->register_thread(this);
+        assert(ISSERVERN(txn_man->return_id));
+
+        INC_STATS(get_thd_id(), sched_txn_table_time,
+                  get_sys_clock() - prof_starttime);
+        prof_starttime = get_sys_clock();
+
+        rc = RCOK;
+        // Acquire locks
+        if(txn_man->isRecon()) assert(false); // PPSのみ？
+        if (!txn_man->isRecon()) {  // recon: 再実行
+          rc = txn_man->acquire_locks(); // 全ての操作のロックを獲得
+        }
+
+        if (rc == RCOK) { // 全ての操作のロックを獲得
+          work_queue.enqueue(_thd_id, msg, false);
+        }
+        txn_man->set_ready();
+
+        INC_STATS(_thd_id, mtx[33], get_sys_clock() - prof_starttime);
+        prof_starttime = get_sys_clock();
+        // ========= end acquire phase =========
+
     // ========= start release phase (0〜n release) =========
     while (txn_man = work_queue.done_dequeue(get_thd_id())) {
-      // cleanup locked rows
-      for (uint64_t i = 0; i < txn_man->calvin_locked_rows.size(); i++) {
-        row_t* row = txn_man->calvin_locked_rows[i];
+      for (row_t* row: txn_man->contented_calvin_locked_rows) {
         row->return_row(rc, RD, txn_man, row);
       }
-
-      // // remove txn from pool
-      // release_txn_man();
-      // // Do not use txn_man after this
-      // TODO: 再考
-      txn_table.release_transaction_manager(get_thd_id(), txn_man->get_txn_id(),
-                                            txn_man->get_batch_id());
-      txn_man = NULL;
+      if (txn_man->calvin_locked_rows.empty()) {
+        txn_table.release_transaction_manager(get_thd_id(), txn_man->get_txn_id(),
+                                        txn_man->get_batch_id());
+      } else {
+        lockeds.push_back(txn_man);
+      }
     }
     // =============================================
 
-    // ========= start acquire phase (a acquire) =========
-    Message* msg = work_queue.sched_dequeue(_thd_id);
-
-      if (!msg) {
-        if (idle_starttime == 0) idle_starttime = get_sys_clock();
-        continue;
+    int cnt = 0;
+    while (!lockeds.empty() && cnt < 5) {
+      txn_man = lockeds.front();
+      lockeds.pop_front();
+      for (row_t* row: txn_man->calvin_locked_rows) {
+        row->return_row(rc, RD, txn_man, row);
       }
-      if (idle_starttime > 0) {
-        INC_STATS(_thd_id, sched_idle_time, get_sys_clock() - idle_starttime);
-        idle_starttime = 0;
-      }
-
-      prof_starttime = get_sys_clock();
-      assert(msg->get_rtype() == CL_QRY);
-      assert(msg->get_txn_id() != UINT64_MAX);
-
-      txn_man = txn_table.get_transaction_manager(
-          get_thd_id(), msg->get_txn_id(), msg->get_batch_id());
-      while (!txn_man->unset_ready()) {
-      }
-      assert(ISSERVERN(msg->get_return_id()));
-      txn_man->txn_stats.starttime = get_sys_clock();
-
-      txn_man->txn_stats.lat_network_time_start = msg->lat_network_time;
-      txn_man->txn_stats.lat_other_time_start = msg->lat_other_time;
-
-      msg->copy_to_txn(txn_man);
-      txn_man->register_thread(this);
-      assert(ISSERVERN(txn_man->return_id));
-
-      INC_STATS(get_thd_id(), sched_txn_table_time,
-                get_sys_clock() - prof_starttime);
-      prof_starttime = get_sys_clock();
-
-      rc = RCOK;
-      // Acquire locks
-      if (!txn_man->isRecon()) {  // recon: 再実行
-        rc = txn_man->acquire_locks(); // 全ての操作のロックを獲得
-      }
-
-      if (rc == RCOK) { // 全ての操作のロックを獲得
-        work_queue.enqueue(_thd_id, msg, false);
-      }
-      txn_man->set_ready();
-
-      INC_STATS(_thd_id, mtx[33], get_sys_clock() - prof_starttime);
-      prof_starttime = get_sys_clock();
-      // ========= end acquire phase =========
+      txn_table.release_transaction_manager(get_thd_id(), txn_man->get_txn_id(),
+                                        txn_man->get_batch_id());
+      cnt++;
+    }
   }
   printf("FINISH %ld:%ld\n", _node_id, _thd_id);
   fflush(stdout);
