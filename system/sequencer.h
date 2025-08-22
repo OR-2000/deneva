@@ -17,6 +17,8 @@
 #ifndef _SEQUENCER_H_
 #define _SEQUENCER_H_
 
+#include "thread.h"
+
 #include "global.h"
 #include "query.h"
 #include <boost/lockfree/queue.hpp>
@@ -55,7 +57,7 @@ class Sequencer {
 	void init(Workload * wl);	
 	void process_ack(Message * msg, uint64_t thd_id);
 	void process_txn(Message * msg,uint64_t thd_id, uint64_t early_start, uint64_t last_start, uint64_t wait_time, uint32_t abort_cnt);
-	void send_next_batch(uint64_t thd_id);
+	void send_next_batch(uint64_t thd_id, Thread* owner = nullptr);
 
  private:
 	void reset_participating_nodes(bool * part_nodes);

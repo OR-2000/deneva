@@ -6,16 +6,16 @@
 // Simulation + Hardware
 /***********************************************/
 #define NODE_CNT 1 // Number of server nodes in the database
-#define THREAD_CNT 36
-#define REM_THREAD_CNT THREAD_CNT
-#define SEND_THREAD_CNT THREAD_CNT
-#define CORE_CNT 36
+#define THREAD_CNT 16
+#define REM_THREAD_CNT 2
+#define SEND_THREAD_CNT 2
+#define CORE_CNT 72
 // PART_CNT should be at least NODE_CNT
 #define PART_CNT NODE_CNT
 #define CLIENT_NODE_CNT NODE_CNT
-#define CLIENT_THREAD_CNT 36
-#define CLIENT_REM_THREAD_CNT 18
-#define CLIENT_SEND_THREAD_CNT 18
+#define CLIENT_THREAD_CNT 4
+#define CLIENT_REM_THREAD_CNT 2
+#define CLIENT_SEND_THREAD_CNT 2
 #define CLIENT_RUNTIME false
 
 #define LOAD_METHOD LOAD_MAX
@@ -44,7 +44,7 @@
 #define TIME_ENABLE         true //STATS_ENABLE
 
 #define FIN_BY_TIME true
-#define MAX_TXN_IN_FLIGHT 100
+#define MAX_TXN_IN_FLIGHT 1000
 
 #define SERVER_GENERATE_QUERIES false
 
@@ -72,8 +72,6 @@
 /***********************************************/
 // Message Passing
 /***********************************************/
-#define TPORT_TYPE TCP
-#define TPORT_PORT 17000
 #define SET_AFFINITY true
 #define TPORT_TYPE TCP
 #define TPORT_PORT 17000
@@ -108,7 +106,8 @@
 #define ROLL_BACK         true
 // per-row lock/ts management or central lock/ts management
 #define CENTRAL_MAN         false
-#define BUCKET_CNT          31
+// #define BUCKET_CNT          31
+#define BUCKET_CNT          16384
 #define ABORT_PENALTY 10 * 1000000UL   // in ns.
 #define ABORT_PENALTY_MAX 5 * 100 * 1000000UL   // in ns.
 #define BACKOFF true
@@ -137,7 +136,8 @@
 // [VLL] 
 #define TXN_QUEUE_SIZE_LIMIT    THREAD_CNT
 // [CALVIN]
-#define SEQ_THREAD_CNT 4 
+#define SEQ_THREAD_CNT 4 // 機能していない
+#define READ_ONLY true
 
 /***********************************************/
 // Logging
@@ -167,7 +167,7 @@
 #define ACCESS_PERC 0.03
 #define INIT_PARALLELISM 8
 #define SYNTH_TABLE_SIZE 65536
-#define ZIPF_THETA 0.3
+#define ZIPF_THETA 0.99
 #define TXN_WRITE_PERC 0.0
 #define TUP_WRITE_PERC 0.0
 #define SCAN_PERC           0
@@ -345,13 +345,14 @@ enum PPSTxnType {PPS_ALL = 0,
 #define STAT_ARR_SIZE 1024
 #define PROG_TIMER 10 * BILLION // in s
 #define BATCH_TIMER 0
-#define SEQ_BATCH_TIMER 5 * 1 * MILLION // ~5ms -- same as CALVIN paper
+// #define SEQ_BATCH_TIMER 5 * 1 * MILLION // ~5ms -- same as CALVIN paper
+#define SEQ_BATCH_TIMER 2 * 1 * MILLION // ~5ms -- same as CALVIN paper
 #define DONE_TIMER 1 * 60 * BILLION // ~1 minutes
 #define WARMUP_TIMER 1 * 60 * BILLION // ~1 minutes
 
 #define SEED 0
 #define SHMEM_ENV false
-#define ENVIRONMENT_EC2 true
+#define ENVIRONMENT_EC2 false
 
 #endif
 

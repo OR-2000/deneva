@@ -55,6 +55,11 @@ RC CalvinLockThread::run() {
                 idle_starttime = get_sys_clock();
             continue;
         }
+
+        // READ_ONLYの時は、下は呼ばれない
+#if READ_ONLY
+        assert(false);
+#endif
         if(idle_starttime > 0) {
             INC_STATS(_thd_id,sched_idle_time,get_sys_clock() - idle_starttime);
             idle_starttime = 0;
@@ -121,7 +126,11 @@ RC CalvinSequencerThread::run() {
         if(is_batch_ready()) {
           simulation->advance_seq_epoch();
           //last_batchtime = get_wall_clock();
-          seq_man.send_next_batch(_thd_id);
+#if READ_ONLY
+            seq_man.send_next_batch(_thd_id, this);
+#else
+            seq_man.send_next_batch(_thd_id);
+#endif
         }
 
         INC_STATS(_thd_id,mtx[30],get_sys_clock() - prof_starttime);

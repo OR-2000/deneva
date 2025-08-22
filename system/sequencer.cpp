@@ -14,6 +14,7 @@
    limitations under the License.
 */
 
+#include "txn.h" 
 #include "global.h"
 #include "sequencer.h"
 #include "ycsb_query.h"
@@ -280,7 +281,10 @@ void Sequencer::process_txn( Message * msg,uint64_t thd_id, uint64_t early_start
 
 
 // Assumes 1 thread does sequencer work
-void Sequencer::send_next_batch(uint64_t thd_id) {
+void Sequencer::send_next_batch(uint64_t thd_id, Thread* owner) {
+  uint64_t prof_starttime = get_sys_clock(); 
+     // プロファイリング用に現在時刻を取得。処理時間の計測に使う。
+
   uint64_t prof_stat = get_sys_clock();
   qlite_ll * en = wl_tail;
   bool empty = true;
@@ -295,7 +299,52 @@ void Sequencer::send_next_batch(uint64_t thd_id) {
   for(uint64_t j = 0; j < g_node_cnt; j++) {
     while(fill_queue[j].pop(msg)) {
       if(j == g_node_id) {
-          work_queue.sched_enqueue(thd_id,msg);
+#if READ_ONLY
+        // ===== LockThread を完全バイパスして Worker へ直投入 =====
+        prof_starttime = get_sys_clock(); 
+        // プロファイリング開始時刻を更新。
+
+        assert(msg->get_rtype() == CL_QRY); 
+        // メッセージの種類がクエリであることを確認。
+ 
+        assert(msg->get_txn_id() != UINT64_MAX); 
+        // トランザクションIDが有効（初期値ではない）であることを確認。
+
+        // 1) TxnManager を取得して占有（LockThreadがやっていた役割）
+        TxnManager* txn_man =
+          txn_table.get_transaction_manager(thd_id, msg->get_txn_id(), msg->get_batch_id());
+        while (!txn_man->unset_ready()) {}  // 占有スピン
+
+        assert(ISSERVERN(msg->get_return_id())); 
+        // メッセージの return_id がサーバを指していることを確認。
+
+        // 2) 統計の引き継ぎ
+        txn_man->txn_stats.starttime = get_sys_clock();
+        txn_man->txn_stats.lat_network_time_start = msg->lat_network_time;
+        txn_man->txn_stats.lat_other_time_start   = msg->lat_other_time;
+
+        // 3) メッセージ内容を TxnManager にコピー
+        msg->copy_to_txn(txn_man);
+        
+        // 4) 実行担当スレッドを登録（SequencerThread を渡す）
+        txn_man->register_thread(owner);
+        assert(ISSERVERN(txn_man->return_id)); // トランザクションの return_id がサーバであることを確認。
+        INC_STATS(thd_id,sched_txn_table_time,get_sys_clock() - prof_starttime); 
+        
+        prof_starttime = get_sys_clock(); 
+        // プロファイリング開始時刻を更新。
+
+        // 5) READ_ONLY なので lock 取得はしないでそのまま Worker キューへ
+        txn_man->set_ready(); // TODO：順番変えた
+        work_queue.enqueue(thd_id, msg, /*busy=*/false);
+        
+        // 6) Worker がピックできるよう ready に戻す
+        prof_starttime = get_sys_clock(); 
+        // 次の計測のために開始時刻を更新。
+#else
+        // 従来どおり LockThread へ
+        work_queue.sched_enqueue(thd_id,msg);
+#endif
       } else {
         msg_queue.enqueue(thd_id,msg,j);
       }
